@@ -1,0 +1,80 @@
+---
+title: "example-code"
+author: "Hannah Garcia-Wickstrum"
+date: "4/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(lubridate)
+library(ggplot2)
+library(tidyverse)
+library(chron)
+```
+
+```{r}
+# setwd("~/Box Sync/Courses_UCSB/ESM237_Spring2021/")
+
+clim = read.table("CachumaLake_NCDC_USC00041253_apr2021.csv",fill=TRUE,sep=',',header=T)
+head(clim)
+
+date=as.Date(clim$DATE)
+# check Allison's code for alternate way to change the date
+```
+
+# start exploratory plotting
+
+```{r}
+ggplot(clim, aes(date, clim$TMAX))+geom_line()+ labs(y="Daily Maximum Temperature (degrees F)", x="Date")
+
+ggplot(clim, aes(date, clim$TMIN))+geom_line()+ labs(y="Daily Minimum Temperature (degrees F)", x="Date")
+
+ggplot(clim, aes(date, clim$PRCP))+geom_line()+ labs(y="Daily Rainfall (in)", x="Date")
+```
+- observe trends here. Are there outliers? 
+
+# Look for NAs
+```{r}
+# find the row with missing data - precipitation (make NAs 0s)
+fillrow = which(is.na(clim$PRCP))
+fillrow
+
+clim$PRCP[fillrow]=0
+
+# replot to make sure it works
+ggplot(clim, aes(date, clim$PRCP))+geom_line()+ labs(y="Daily rainfall (mm)", x="Date")
+```
+
+```{r}
+# find rows with missing data - maxTemp
+# temperature
+fillrow = which(is.na(clim$TMAX) | clim$TMAX < 40)
+fillrow = fillrow[2:length(fillrow)]
+clim$TMAX[fillrow]=(clim$TMAX[fillrow+1] + clim$TMAX[fillrow-1])/2
+ggplot(clim, aes(date, clim$TMAX))+geom_line()+ labs(y="Daily Maximum Temperature (degrees F)", x="Date")
+```
+
+# Look for trends with temperature
+```{r}
+clim.mwy = clim %>% group_by(year(date)) %>% summarize(tmax=mean(TMAX), tmin=mean(TMIN), precip=sum(PRCP))
+clim.mwy$dt = unique(year(date))
+
+ggplot(clim.mwy, aes(x=dt, tmax))+geom_point(col="red")+
+  scale_y_continuous(limits=c(min(clim.mwy$tmin), max(clim.mwy$tmax)))+
+geom_point(data=clim.mwy, aes(x=dt, tmin), col="blue")
+```
+
+```{r}
+a = ggplot(clim.mwy, aes(x=dt, tmax))+geom_point(col="red")+
+  scale_y_continuous(limits=c(min(clim.mwy$tmin), max(clim.mwy$tmax)))+
+geom_point(data=clim.mwy, aes(x=dt, tmin), col="blue")
+
+# now lets add a trend line
+a =a+stat_smooth(method="lm", col="red")
+a
+```
+
